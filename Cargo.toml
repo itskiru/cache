@@ -1,0 +1,21 @@
+[package]
+authors = ["Zeyla Hellyer <hi@zeyla.me>"]
+description = "Implementation for dabBot's components to work with the cache."
+edition = "2018"
+homepage = "https://github.com/dabbotorg/cache"
+license = "ISC"
+name = "dabbot-cache"
+publish = false
+readme = "README.md"
+repository = "https://github.com/dabbotorg/cache.git"
+version = "0.1.0"
+
+[dependencies.essentials]
+git = "https://github.com/zeyla/essentials.rs"
+
+[dependencies.futures-preview]
+features = ["compat", "tokio-compat"]
+version = "0.3.0-alpha.6"
+
+[dependencies.redis-async]
+git = "https://github.com/zeyla/redis-async-rs"
