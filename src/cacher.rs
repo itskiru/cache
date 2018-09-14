@@ -12,6 +12,12 @@ use redis_async::{
 use std::future::FutureObj;
 
 pub trait DabbotCache {
+    fn delete_guild_voice_state(
+        &self,
+        guild_id: u64,
+        user_id: u64,
+    ) -> FutureResult<bool>;
+
     fn get_guild_voice_state(
         &self,
         guild_id: u64,
@@ -27,6 +33,23 @@ pub trait DabbotCache {
 }
 
 impl DabbotCache for PairedConnection {
+    fn delete_guild_voice_state(
+        &self,
+        guild_id: u64,
+        user_id: u64,
+    ) -> FutureResult<bool> {
+        let key = gen::user_voice_state(guild_id, user_id);
+        let cmd = resp_array!["DEL", key];
+
+        let res = self.send(cmd).compat();
+
+        FutureObj::new(Box::new(async {
+            let number_deleted: usize = await!(res)?;
+
+            Ok(number_deleted > 0)
+        }))
+    }
+
     fn get_guild_voice_state(
         &self,
         guild_id: u64,
