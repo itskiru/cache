@@ -2,11 +2,11 @@ use redis_async::error::Error as RedisError;
 use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
-    future::FutureObj,
     option::NoneError,
+    result::Result as StdResult,
 };
 
-pub type FutureResult<T> = FutureObj<'static, Result<T, Error>>;
+pub type Result<T> = StdResult<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
