@@ -9,7 +9,10 @@ use redis_async::{
     client::PairedConnection,
     resp::{FromResp, RespValue},
 };
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
 
 /// A struct with common shared functionality over the bot's cache.
 pub struct Cache {
@@ -30,16 +33,13 @@ impl Cache {
     /// Set.
     ///
     /// Returns whether a voice state was deleted.
-    pub async fn delete_guild_voice_state(
+    pub async fn delete_voice_state(
         &self,
         guild_id: u64,
         user_id: u64,
     ) -> Result<bool> {
         // Remove the voice state for the user.
-        await!(self.send(resp_array![
-            "DEL",
-            gen::user_voice_state(guild_id, user_id)
-        ]))?;
+        await!(self.delete_voice_state_atomic(guild_id, user_id))?;
 
         // Remove the user's ID from the guild's voice state set.
         let deleted: usize = await!(self.send(resp_array![
@@ -51,8 +51,49 @@ impl Cache {
         Ok(deleted > 0)
     }
 
+    async fn delete_voice_state_atomic(
+        &self,
+        guild_id: u64,
+        user_id: u64,
+    ) -> Result<()> {
+        await!(self.send(resp_array![
+            "DEL",
+            gen::user_voice_state(guild_id, user_id)
+        ])).map_err(From::from)
+    }
+
+    async fn delete_voice_state_list(
+        &self,
+        guild_id: u64,
+    ) -> Result<()> {
+        await!(self.send(resp_array![
+            "DEL",
+            gen::guild_voice_states(guild_id)
+        ])).map_err(From::from)
+    }
+
+    /// Deletes all of the voice states for a guild.
+    ///
+    /// Returns the number of voice states deleted.
+    pub async fn delete_voice_states(
+        &self,
+        guild_id: u64,
+    ) -> Result<u64> {
+        let ids = await!(self.get_voice_state_list(guild_id))?;
+
+        let count = ids.len();
+
+        for id in ids {
+            await!(self.delete_voice_state_atomic(guild_id, id))?;
+        }
+
+        await!(self.delete_voice_state_list(guild_id))?;
+
+        Ok(count as u64)
+    }
+
     /// Returns a voice state for a guild member, if one exists for them.
-    pub async fn get_guild_voice_state(
+    pub async fn get_voice_state(
         &self,
         guild_id: u64,
         user_id: u64,
@@ -78,11 +119,40 @@ impl Cache {
         }))
     }
 
+    /// Gets all of the voice states for a guild.
+    pub async fn get_voice_states(
+        &self,
+        guild_id: u64,
+    ) -> Result<HashMap<u64, VoiceState>> {
+        let user_ids = await!(self.get_voice_state_list(guild_id))?;
+
+        let mut map = HashMap::new();
+
+        for id in user_ids {
+            let state = await!(self.get_voice_state(guild_id, id))??;
+
+            map.insert(id, state);
+        }
+
+        Ok(map)
+    }
+
+    /// Gets the IDs of all members that have a voice state in a guild.
+    pub async fn get_voice_state_list(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<u64>> {
+        await!(self.send(resp_array![
+            "GET",
+            gen::guild_voice_states(guild_id)
+        ])).map_err(From::from)
+    }
+
     /// Upserts a guild member's voice state.
     ///
     /// Adds the user's ID to the guild's voice state Set if it wasn't already
     /// in the Set.
-    pub async fn set_guild_voice_state(
+    pub async fn set_voice_state(
         &self,
         guild_id: u64,
         user_id: u64,
