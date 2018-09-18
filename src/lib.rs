@@ -7,13 +7,16 @@
     underscore_imports,
 )]
 
+#[macro_use] extern crate log;
 #[macro_use] extern crate redis_async;
+#[macro_use] extern crate serde;
 
 pub mod model;
 
 mod cache;
 mod error;
 mod gen;
+mod resp_impl;
 
 pub use crate::{
     cache::Cache,

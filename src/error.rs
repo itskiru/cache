@@ -1,4 +1,5 @@
 use redis_async::error::Error as RedisError;
+use serde_json::Error as JsonError;
 use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -10,6 +11,7 @@ pub type Result<T> = StdResult<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+    Json(JsonError),
     None,
     Redis(RedisError),
 }
@@ -25,9 +27,16 @@ impl StdError for Error {
         use self::Error::*;
 
         match self {
+            Json(why) => why.description(),
             None => "none",
             Redis(why) => why.description(),
         }
+    }
+}
+
+impl From<JsonError> for Error {
+    fn from(e: JsonError) -> Error {
+        Error::Json(e)
     }
 }
 
