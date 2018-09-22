@@ -13,10 +13,7 @@ use redis_async::{
     client::PairedConnection,
     resp::{FromResp, RespValue},
 };
-use serde::{
-    de::DeserializeOwned,
-    ser::Serialize,
-};
+use serde::de::DeserializeOwned;
 use serenity::model::prelude::*;
 use std::{
     collections::HashMap,
@@ -337,20 +334,6 @@ impl Cache {
         Ok(map)
     }
 
-    pub async fn upsert<'a, T: Serialize + 'static>(
-        &'a self,
-        key: String,
-        item: &'a T,
-    ) -> Result<()> {
-        let bytes = serde_json::to_vec(item)?;
-
-        await!(self.set(resp_array![
-            "SET",
-            key,
-            bytes
-        ]))
-    }
-
     pub async fn delete_channel(&self, id: u64) -> Result<()> {
         await!(self.del(gen::channel(id)))
     }
@@ -561,7 +544,7 @@ impl Cache {
 
         let hashes = resp_array![
             "colour",
-            (role.colour.0 as usize),
+            role.colour as usize,
             "name",
             role.name.clone(),
             "permissions",
