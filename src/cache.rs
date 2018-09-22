@@ -544,7 +544,7 @@ impl Cache {
 
         let hashes = resp_array![
             "colour",
-            role.colour as usize,
+            role.colour.0 as usize,
             "name",
             role.name.clone(),
             "permissions",

@@ -32,6 +32,7 @@ version = "1"
 default-features = false
 branch = "futures"
 git = "https://github.com/serenity-rs/serenity"
+features = ["utils"]
 
 [dev-dependencies]
 chrono = "0.4"
