@@ -4,10 +4,7 @@ use crate::{
     model::VoiceState as CachedVoiceState,
     resp_impl::RespValueExt as _,
 };
-use essentials::{
-    result::ResultExt as _,
-    VecExt as _,
-};
+use essentials::result::ResultExt as _;
 use futures::compat::Future01CompatExt as _;
 use redis_async::{
     client::PairedConnection,
@@ -104,25 +101,16 @@ impl Cache {
         guild_id: u64,
         user_id: u64,
     ) -> Result<Option<CachedVoiceState>> {
-        let value: Option<Vec<RespValue>> = await!(self.send(resp_array![
+        let value: Vec<RespValue> = await!(self.send(resp_array![
             "HGETALL",
             gen::user_voice_state(guild_id, user_id)
         ]))?;
 
-        let mut values = match value {
-            Some(values) => values,
-            None => return Ok(None),
-        };
+        if value.is_empty() {
+            return Ok(None);
+        }
 
-        let token = values.try_remove(2)?;
-        let session_id = values.try_remove(1)?;
-        let channel_id = values.try_remove(0)?;
-
-        Ok(Some(CachedVoiceState {
-            channel_id: FromResp::from_resp(channel_id)?,
-            session_id: FromResp::from_resp(session_id)?,
-            token: String::from_resp(token).ok(),
-        }))
+        FromResp::from_resp(RespValue::Array(value)).map(Some).into_err()
     }
 
     /// Gets all of the voice states for a guild.

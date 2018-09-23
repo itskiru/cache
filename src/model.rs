@@ -3,12 +3,21 @@ use redis_async::{
     error::Error,
     resp::{FromResp, RespValue},
 };
-use serenity::model::{
-    channel::PermissionOverwriteType,
-    permissions::Permissions,
-};
+use serde::de::DeserializeOwned;
 use serde_json::{Map, Number, Value};
+use serenity::model::permissions::Permissions;
 use std::collections::HashSet;
+
+fn convert<T: DeserializeOwned>(resp: RespValue) -> Result<T, Error> {
+    let values = match resp {
+        RespValue::Array(x) => x,
+        _ => return Err(Error::RESP("Expected an array".to_owned(), None)),
+    };
+
+    let map = create_hashmap(values);
+
+    Ok(serde_json::from_value(Value::from(map)).expect("err deserializing"))
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Guild {
@@ -23,20 +32,7 @@ pub struct Guild {
     pub voice_states: HashSet<u64>,
 }
 
-impl FromResp for Guild {
-    fn from_resp_int(resp: RespValue) -> Result<Self, Error> {
-        let values = match resp {
-            RespValue::Array(x) => x,
-            _ => return Err(Error::RESP("Expected an array".to_owned(), None)),
-        };
-
-        let map = create_hashmap(values);
-
-        Ok(serde_json::from_value(Value::from(map)).expect("err deserializing"))
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GuildChannel {
     pub bitrate: Option<u64>,
     pub category_id: Option<u64>,
@@ -46,7 +42,7 @@ pub struct GuildChannel {
     pub user_limit: Option<u64>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Member {
     pub deaf: bool,
     pub nick: Option<String>,
@@ -54,20 +50,20 @@ pub struct Member {
     pub user: User,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PermissionOverwrite {
     pub allow: Permissions,
     pub deny: Permissions,
-    pub kind: PermissionOverwriteType,
+    pub kind: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Role {
     pub name: String,
     pub permissions: Permissions,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct User {
     pub bot: bool,
     pub discriminator: u16,
@@ -75,7 +71,7 @@ pub struct User {
     pub name: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct VoiceState {
     pub channel_id: u64,
     pub session_id: String,
@@ -117,3 +113,24 @@ fn resp_to_value(resp: RespValue) -> Value {
         RespValue::SimpleString(string) => Value::String(string),
     }
 }
+
+
+macro from_resp_impls($($struct:ident,)+) {
+    $(
+        impl FromResp for $struct {
+            fn from_resp_int(resp: RespValue) -> Result<Self, Error> {
+                convert(resp)
+            }
+        }
+    )+
+}
+
+from_resp_impls![
+    Guild,
+    GuildChannel,
+    Member,
+    PermissionOverwrite,
+    Role,
+    User,
+    VoiceState,
+];

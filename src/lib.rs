@@ -1,6 +1,7 @@
 #![feature(
     async_await,
     await_macro,
+    decl_macro,
     futures_api,
     pin,
     try_trait,
