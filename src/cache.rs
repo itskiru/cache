@@ -592,7 +592,7 @@ impl Cache {
             endpoint,
             "token",
             token
-        ]);
+        ].into_array());
     }
 
     fn set_guild_channels(
