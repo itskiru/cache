@@ -578,6 +578,23 @@ impl Cache {
         }
     }
 
+    pub fn upsert_voice_state_info<'a>(
+        &'a self,
+        guild_id: u64,
+        user_id: u64,
+        endpoint: String,
+        token: String,
+    ) {
+        let key = gen::user_voice_state(guild_id, user_id);
+
+        self.hmset_and_forget(key, resp_array![
+            "endpoint",
+            endpoint,
+            "token",
+            token
+        ]);
+    }
+
     fn set_guild_channels(
         &self,
         guild_id: u64,
