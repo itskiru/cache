@@ -19,10 +19,7 @@ git = "https://github.com/zeyla/essentials.rs"
 
 [dependencies.futures-preview]
 features = ["compat", "tokio-compat"]
-version = "0.3.0-alpha.6"
-
-[dependencies.pin-utils]
-version = "=0.1.0-alpha.2"
+version = "0.3.0-alpha.7"
 
 [dependencies.redis-async]
 git = "https://github.com/zeyla/redis-async-rs"
