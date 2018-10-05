@@ -131,6 +131,19 @@ impl Cache {
         Ok(map)
     }
 
+    /// Gets the IDs of all members that have a voice state in a channel.
+    pub async fn get_channel_voice_states(
+        &self,
+        channel_id: u64,
+    ) -> Result<Vec<u64>> {
+        let value = await!(self.send(resp_array![
+            "SMEMBERS",
+            gen::channel_voice_states(channel_id)
+        ]))?;
+
+        FromResp::from_resp(RespValue::Array(value)).into_err()
+    }
+
     /// Gets the IDs of all members that have a voice state in a guild.
     pub async fn get_voice_state_list(
         &self,
@@ -289,6 +302,14 @@ impl Cache {
 
     async fn smembers(&self, key: String) -> Result<RespValue> {
         await!(self.send(resp_array!["SMEMBERS", key]))
+    }
+
+    async fn srem(&self, key: String, mut ids: Vec<usize>) -> Result<RespValue> {
+        await!(self.send(resp_array!["SREM", key].append(&mut ids)))
+    }
+
+    fn srem_and_forget(&self, key: String, mut ids: Vec<usize>) {
+        self.send_and_forget(resp_array!["SREM", key].append(&mut ids))
     }
 }
 
@@ -475,6 +496,23 @@ impl Cache {
         );
         info!("Guild set voice state successful");
 
+        let channel_states: HashMap<u64, Vec<usize>> = guild.voice_states
+            .values()
+            .fold(HashMap::new(), |mut acc, state| {
+                let cid = match state.channel_id {
+                    Some(id) => id.0,
+                    None => return acc,
+                };
+
+                acc.entry(cid).or_default().push(state.user_id.0 as usize);
+
+                return acc;
+            });
+
+        for (id, user_ids) in channel_states {
+            self.set_channel_voice_states(id, user_ids);
+        }
+
         info!("Upserting guild voice states");
         for state in guild.voice_states.values() {
             self.upsert_voice_state(gid, state);
@@ -542,18 +580,25 @@ impl Cache {
         self.hmset_and_forget(gen::role(guild_id, id), hashes.into_array());
     }
 
-    pub fn upsert_voice_state<'a>(
+    pub async fn upsert_voice_state<'a>(
         &'a self,
         guild_id: u64,
         state: &'a VoiceState,
-    ) {
+    ) -> Result<()> {
         let user_id = state.user_id.0;
         let key = gen::user_voice_state(guild_id, user_id);
 
+        trace!("Getting old voice state");
+        let old_state = await!(self.get_voice_state(guild_id, user_id))?;
+        trace!("Got old voice state: {:?}", old_state);
+
         if let Some(channel_id) = state.channel_id {
+            let channel_id = channel_id.0;
+            trace!("Voice state has a channel ID: {}", channel_id);
+
             let mut values = resp_array![
                 "channel_id",
-                channel_id.0 as usize,
+                channel_id as usize,
                 "mute",
                 usize::from(state.mute),
                 "self_deaf",
@@ -573,9 +618,49 @@ impl Cache {
             }
 
             self.hmset_and_forget(key, values.into_array());
+
+            let mut add_member = true;
+
+            if let Some(old_cid) = old_state.map(|s| s.channel_id) {
+                trace!("Old voice state exists and has a channel ID");
+
+                if old_cid != channel_id {
+                    trace!("Old channel ID is different from new");
+
+                    self.srem_and_forget(
+                        gen::channel_voice_states(old_cid),
+                        vec![user_id as usize],
+                    );
+                } else {
+                    add_member = false;
+                }
+            }
+
+            if add_member {
+                self.sadd_and_forget(
+                    gen::channel_voice_states(channel_id),
+                    vec![user_id as usize],
+                );
+            }
         } else {
+            trace!("No channel ID for voice state");
+            if let Some(channel_id) = old_state.map(|s| s.channel_id) {
+                trace!("Deleting old voice state for channel {}", channel_id);
+
+                self.srem_and_forget(
+                    gen::channel_voice_states(channel_id),
+                    vec![user_id as usize],
+                );
+            }
+
+            self.srem_and_forget(
+                gen::guild_voice_states(guild_id),
+                vec![user_id as usize],
+            );
             self.del_and_forget(key);
         }
+
+        Ok(())
     }
 
     pub fn upsert_voice_state_info<'a>(
@@ -593,6 +678,17 @@ impl Cache {
             "token",
             token
         ].into_array());
+    }
+
+    fn set_channel_voice_states(
+        &self,
+        channel_id: u64,
+        user_ids: Vec<usize>,
+    ) {
+        let key = gen::channel_voice_states(channel_id);
+
+        self.del_and_forget(key.clone());
+        self.sadd_and_forget(key, user_ids);
     }
 
     fn set_guild_channels(

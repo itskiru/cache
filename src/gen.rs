@@ -2,6 +2,10 @@ pub fn channel(id: u64) -> String {
     format!("ch:{}", id)
 }
 
+pub fn channel_voice_states(id: u64) -> String {
+    format!("ch:{}:v", id)
+}
+
 pub fn guild(id: u64) -> String {
     format!("g:{}", id)
 }
@@ -47,6 +51,11 @@ mod tests {
     #[test]
     fn channel() {
         assert_eq!(super::channel(381880193700069377), "ch:381880193700069377");
+    }
+
+    #[test]
+    fn channel_voice_states() {
+        assert_eq!(super::channel(2), "ch:2:v");
     }
 
     #[test]
