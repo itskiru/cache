@@ -136,12 +136,15 @@ impl Cache {
         &self,
         channel_id: u64,
     ) -> Result<Vec<u64>> {
-        let value = await!(self.send(resp_array![
-            "SMEMBERS",
-            gen::channel_voice_states(channel_id)
-        ]))?;
+        let ids = await!(self.smembers::<Vec<String>>(gen::channel_voice_states(channel_id)))?;
 
-        FromResp::from_resp(RespValue::Array(value)).into_err()
+        let mut numbers = Vec::with_capacity(ids.len());
+
+        for id in ids {
+            numbers.push(id.parse()?);
+        }
+
+        Ok(numbers)
     }
 
     /// Gets the IDs of all members that have a voice state in a guild.
@@ -300,8 +303,13 @@ impl Cache {
         await!(self.send(resp_array!["SET", key].append(&mut values)))
     }
 
-    async fn smembers(&self, key: String) -> Result<RespValue> {
-        await!(self.send(resp_array!["SMEMBERS", key]))
+    async fn smembers<T: FromResp + 'static>(
+        &self,
+        key: String,
+    ) -> Result<T> {
+        let values = await!(self.send(resp_array!["SMEMBERS", key]))?;
+
+        FromResp::from_resp(values).into_err()
     }
 
     async fn srem(&self, key: String, mut ids: Vec<usize>) -> Result<RespValue> {
@@ -387,19 +395,19 @@ impl Cache {
 
         let mut values = RespValue::Array(values);
 
-        let channels = await!(self.smembers(gen::guild_channels(id)))?;
+        let channels = await!(self.smembers::<RespValue>(gen::guild_channels(id)))?;
         values.push("channels").push(channels);
 
-        let features = await!(self.smembers(gen::guild_features(id)))?;
+        let features = await!(self.smembers::<RespValue>(gen::guild_features(id)))?;
         values.push("features").push(features);
 
-        let members = await!(self.smembers(gen::guild_members(id)))?;
+        let members = await!(self.smembers::<RespValue>(gen::guild_members(id)))?;
         values.push("members").push(members);
 
-        let roles = await!(self.smembers(gen::guild_roles(id)))?;
+        let roles = await!(self.smembers::<RespValue>(gen::guild_roles(id)))?;
         values.push("roles").push(roles);
 
-        let voice_states = await!(self.smembers(gen::guild_voice_states(id)))?;
+        let voice_states = await!(self.smembers::<RespValue>(gen::guild_voice_states(id)))?;
         values.push("voice_states").push(voice_states);
 
         FromResp::from_resp(values).into_err()

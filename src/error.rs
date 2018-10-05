@@ -3,6 +3,7 @@ use serde_json::Error as JsonError;
 use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
+    num::ParseIntError,
     option::NoneError,
     result::Result as StdResult,
 };
@@ -13,6 +14,7 @@ pub type Result<T> = StdResult<T, Error>;
 pub enum Error {
     Json(JsonError),
     None,
+    ParseInt(ParseIntError),
     Redis(RedisError),
 }
 
@@ -29,6 +31,7 @@ impl StdError for Error {
         match self {
             Json(why) => why.description(),
             None => "none",
+            ParseInt(why) => why.description(),
             Redis(why) => why.description(),
         }
     }
@@ -43,6 +46,12 @@ impl From<JsonError> for Error {
 impl From<NoneError> for Error {
     fn from(_: NoneError) -> Error {
         Error::None
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(e: ParseIntError) -> Error {
+        Error::ParseInt(e)
     }
 }
 
