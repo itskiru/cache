@@ -75,7 +75,7 @@ impl Cache {
         &self,
         guild_id: u64,
     ) -> Result<u64> {
-        let ids = await!(self.get_voice_state_list(guild_id))?;
+        let ids = await!(self.get_voice_state_list(guild_id)).unwrap_or_default();
 
         let count = ids.len();
 
