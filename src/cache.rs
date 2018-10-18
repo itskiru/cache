@@ -42,37 +42,30 @@ impl Cache {
         user_id: u64,
     ) -> Result<bool> {
         // Remove the voice state for the user.
-        await!(self.delete_voice_state_atomic(guild_id, user_id))?;
+        self.delete_voice_state_atomic(guild_id, user_id);
 
         // Remove the user's ID from the guild's voice state set.
-        let deleted = await!(self.send::<usize>(resp_array![
-            "SREM",
+        let deleted = await!(self.srem(
             gen::guild_voice_states(guild_id),
-            user_id as usize
-        ]))?;
+            vec![user_id as usize],
+        ))?;
 
-        Ok(deleted > 0)
+        Ok(deleted.into_array().len() > 0)
     }
 
-    async fn delete_voice_state_atomic(
+    fn delete_voice_state_atomic(
         &self,
         guild_id: u64,
         user_id: u64,
-    ) -> Result<()> {
-        await!(self.send(resp_array![
-            "DEL",
-            gen::user_voice_state(guild_id, user_id)
-        ])).into_err()
+    ) {
+        self.del_and_forget(gen::user_voice_state(guild_id, user_id))
     }
 
-    async fn delete_voice_state_list(
+    fn delete_voice_state_list(
         &self,
         guild_id: u64,
-    ) -> Result<()> {
-        await!(self.send(resp_array![
-            "DEL",
-            gen::guild_voice_states(guild_id)
-        ])).into_err()
+    ) {
+        self.del_and_forget(gen::guild_voice_states(guild_id))
     }
 
     /// Deletes all of the voice states for a guild.
@@ -87,10 +80,10 @@ impl Cache {
         let count = ids.len();
 
         for id in ids {
-            await!(self.delete_voice_state_atomic(guild_id, id))?;
+            self.delete_voice_state_atomic(guild_id, id);
         }
 
-        await!(self.delete_voice_state_list(guild_id))?;
+        self.delete_voice_state_list(guild_id);
 
         Ok(count as u64)
     }
