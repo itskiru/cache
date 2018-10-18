@@ -187,6 +187,15 @@ impl Cache {
         Ok(())
     }
 
+    fn delm_and_forget<T: Into<String>, It: IntoIterator<Item = T>>(
+        &self,
+        keys: It,
+    ) {
+        for key in keys.into_iter() {
+            self.del_and_forget(key.into());
+        }
+    }
+
     async fn get<T: FromResp + 'static>(
         &self,
         key: String,
@@ -351,26 +360,26 @@ impl Cache {
         Ok(map)
     }
 
-    pub async fn delete_channel(&self, id: u64) -> Result<()> {
-        await!(self.del(gen::channel(id)))
+    pub fn delete_channel(&self, id: u64) {
+        self.del_and_forget(gen::channel(id))
     }
 
-    pub async fn delete_channels<'a>(
+    pub fn delete_channels<'a>(
         &'a self,
         ids: impl IntoIterator<Item = u64> + 'a,
-    ) -> Result<()> {
-        await!(self.delm(ids.into_iter().map(gen::channel)))
+    ) {
+        self.delm_and_forget(ids.into_iter().map(gen::channel))
     }
 
-    pub async fn delete_guild(&self, id: u64) -> Result<()> {
-        await!(self.del(gen::guild(id)))
+    pub fn delete_guild(&self, id: u64) {
+        self.del_and_forget(gen::guild(id))
     }
 
-    pub async fn delete_guilds<'a>(
-        &'a self,
-        ids: impl IntoIterator<Item = u64> + 'a,
-    ) -> Result<()> {
-        await!(self.delm(ids.into_iter().map(gen::guild)))
+    pub fn delete_guilds(
+        &self,
+        ids: impl IntoIterator<Item = u64>,
+    ) {
+        self.delm_and_forget(ids.into_iter().map(gen::guild))
     }
 
     // pub async fn get_channel(&self, id: u64) -> Result<Channel> {
