@@ -145,7 +145,13 @@ impl Cache {
         &self,
         guild_id: u64,
     ) -> Result<Vec<u64>> {
-        await!(self.get(gen::guild_voice_states(guild_id)))
+        let resp = await!(self.get(gen::guild_voice_states(guild_id)))?;
+
+        if resp == RespValue::Nil {
+            return Ok(vec![]);
+        }
+
+        FromResp::from_resp(resp).into_err()
     }
 
     async fn send<T: FromResp>(&self, value: RespValue) -> Result<T> {
