@@ -4,6 +4,7 @@ use redis_async::{
     resp::{FromResp, RespValue},
 };
 use serde::de::DeserializeOwned;
+use serde_aux::prelude::*;
 use serde_json::{Map, Number, Value};
 use serenity::model::permissions::Permissions;
 use std::collections::HashSet;
@@ -73,6 +74,7 @@ pub struct User {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct VoiceState {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub channel_id: u64,
     pub session_id: String,
     pub token: Option<String>,
