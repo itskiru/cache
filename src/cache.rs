@@ -1,11 +1,11 @@
 use crate::{
+    commands::CommandablePairedConnection,
     error::{Error, Result},
     gen,
     model::VoiceState as CachedVoiceState,
     resp_impl::RespValueExt as _,
 };
 use essentials::result::ResultExt as _;
-use futures::compat::Future01CompatExt as _;
 use redis_async::{
     client::PairedConnection,
     resp::{FromResp, RespValue},
@@ -19,14 +19,14 @@ use std::{
 
 /// A struct with common shared functionality over the bot's cache.
 pub struct Cache {
-    redis: Arc<PairedConnection>,
+    inner: CommandablePairedConnection,
 }
 
 impl Cache {
     /// Creates a new cache accesser instance.
     pub fn new(redis: Arc<PairedConnection>) -> Self {
         Self {
-            redis,
+            inner: CommandablePairedConnection::new(redis),
         }
     }
 
@@ -45,7 +45,7 @@ impl Cache {
         self.delete_voice_state_atomic(guild_id, user_id);
 
         // Remove the user's ID from the guild's voice state set.
-        let deleted = await!(self.srem(
+        let deleted = await!(self.inner.srem(
             gen::guild_voice_states(guild_id),
             vec![user_id as usize],
         ))?;
@@ -58,14 +58,14 @@ impl Cache {
         guild_id: u64,
         user_id: u64,
     ) {
-        self.del_and_forget(gen::user_voice_state(guild_id, user_id))
+        self.inner.del_sync(gen::user_voice_state(guild_id, user_id))
     }
 
     fn delete_voice_state_list(
         &self,
         guild_id: u64,
     ) {
-        self.del_and_forget(gen::guild_voice_states(guild_id))
+        self.inner.del_sync(gen::guild_voice_states(guild_id))
     }
 
     /// Deletes all of the voice states for a guild.
@@ -94,7 +94,7 @@ impl Cache {
         guild_id: u64,
         user_id: u64,
     ) -> Result<Option<CachedVoiceState>> {
-        let value: Vec<RespValue> = await!(self.send(resp_array![
+        let value: Vec<RespValue> = await!(self.inner.send(resp_array![
             "HGETALL",
             gen::user_voice_state(guild_id, user_id)
         ]))?;
@@ -129,7 +129,7 @@ impl Cache {
         &self,
         channel_id: u64,
     ) -> Result<Vec<u64>> {
-        let ids = await!(self.smembers::<Vec<String>>(gen::channel_voice_states(channel_id)))?;
+        let ids = await!(self.inner.smembers::<Vec<String>>(gen::channel_voice_states(channel_id)))?;
 
         let mut numbers = Vec::with_capacity(ids.len());
 
@@ -145,187 +145,13 @@ impl Cache {
         &self,
         guild_id: u64,
     ) -> Result<Vec<u64>> {
-        let resp = await!(self.get(gen::guild_voice_states(guild_id)))?;
+        let resp = await!(self.inner.get(gen::guild_voice_states(guild_id)))?;
 
         if resp == RespValue::Nil {
             return Ok(vec![]);
         }
 
         FromResp::from_resp(resp).into_err()
-    }
-
-    async fn send<T: FromResp>(&self, value: RespValue) -> Result<T> {
-        await!(self.redis.send(value).compat()).into_err()
-    }
-
-    fn send_and_forget(&self, value: RespValue) {
-        self.redis.send_and_forget(value)
-    }
-}
-
-/// Redis commands.
-impl Cache {
-    async fn del(&self, key: String) -> Result<()> {
-        await!(self.send::<i64>(resp_array!["DEL", key]))?;
-
-        Ok(())
-    }
-
-    fn del_and_forget(&self, key: String) {
-        self.send_and_forget(resp_array!["DEL", key]);
-    }
-
-    async fn delm<'a, T: Into<String>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        keys: It,
-    ) -> Result<()> {
-        for key in keys.into_iter() {
-            await!(self.del(key.into()))?;
-        }
-
-        Ok(())
-    }
-
-    fn delm_and_forget<T: Into<String>, It: IntoIterator<Item = T>>(
-        &self,
-        keys: It,
-    ) {
-        for key in keys.into_iter() {
-            self.del_and_forget(key.into());
-        }
-    }
-
-    async fn get<T: FromResp + 'static>(
-        &self,
-        key: String,
-    ) -> Result<T> {
-        let value = await!(self.send(resp_array![
-            "GET",
-            key
-        ]))?;
-
-        FromResp::from_resp(value).into_err()
-    }
-
-    async fn hdel<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) -> Result<()> {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        await!(self.send::<i64>(resp_array!["HDEL", key].append(&mut values)))?;
-
-        Ok(())
-    }
-
-    fn hdel_and_forget<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        self.send_and_forget(resp_array!["HDEL", key].append(&mut values));
-    }
-
-    async fn hgetall(&self, key: String) -> Result<RespValue> {
-        await!(self.send(resp_array!["HGETALL", key]))
-    }
-
-    async fn hmset<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) -> Result<()> {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        await!(self.send(resp_array!["HMSET", key].append(&mut values)))?;
-
-        Ok(())
-    }
-
-    fn hmset_and_forget<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    )  {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        self.send_and_forget(resp_array!["HMSET", key].append(&mut values));
-    }
-
-    async fn rpush<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) -> Result<()> {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        await!(self.send(resp_array!["RPUSH", key].append(&mut values)))?;
-
-        Ok(())
-    }
-
-    async fn sadd<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) -> Result<i64> {
-        let mut values = values.into_iter().map(Into::into).collect::<Vec<_>>();
-
-        if values.is_empty() {
-            return Ok(0);
-        }
-
-        await!(self.send::<i64>(resp_array![
-            "SADD",
-            key
-        ].append(&mut values)))
-    }
-
-    fn sadd_and_forget<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) {
-        let mut values = values.into_iter().map(Into::into).collect::<Vec<_>>();
-
-        if values.is_empty() {
-            return;
-        }
-
-        self.send_and_forget(resp_array![
-            "SADD",
-            key
-        ].append(&mut values));
-    }
-
-    async fn set<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
-        &'a self,
-        key: String,
-        values: It,
-    ) -> Result<i64> {
-        let mut values = values.into_iter().map(Into::into).collect();
-
-        await!(self.send(resp_array!["SET", key].append(&mut values)))
-    }
-
-    async fn smembers<T: FromResp + 'static>(
-        &self,
-        key: String,
-    ) -> Result<T> {
-        let values = await!(self.send(resp_array!["SMEMBERS", key]))?;
-
-        FromResp::from_resp(values).into_err()
-    }
-
-    async fn srem(&self, key: String, mut ids: Vec<usize>) -> Result<RespValue> {
-        await!(self.send(resp_array!["SREM", key].append(&mut ids)))
-    }
-
-    fn srem_and_forget(&self, key: String, mut ids: Vec<usize>) {
-        self.send_and_forget(resp_array!["SREM", key].append(&mut ids))
     }
 }
 
@@ -347,7 +173,7 @@ impl Cache {
         }
 
         let arr = RespValue::Array(values);
-        let values = await!(self.send::<Vec<Vec<_>>>(arr))?;
+        let values = await!(self.inner.send::<Vec<Vec<_>>>(arr))?;
 
         let mut ids = ids.into_iter();
         let mut map = HashMap::with_capacity(pair_len);
@@ -360,29 +186,29 @@ impl Cache {
     }
 
     pub fn delete_channel(&self, id: u64) {
-        self.del_and_forget(gen::channel(id))
+        self.inner.del_sync(gen::channel(id))
     }
 
     pub fn delete_channels<'a>(
         &'a self,
         ids: impl IntoIterator<Item = u64> + 'a,
     ) {
-        self.delm_and_forget(ids.into_iter().map(gen::channel))
+        self.inner.delm_sync(ids.into_iter().map(gen::channel))
     }
 
     pub fn delete_guild(&self, id: u64) {
-        self.del_and_forget(gen::guild(id))
+        self.inner.del_sync(gen::guild(id))
     }
 
     pub fn delete_guilds(
         &self,
         ids: impl IntoIterator<Item = u64>,
     ) {
-        self.delm_and_forget(ids.into_iter().map(gen::guild))
+        self.inner.delm_sync(ids.into_iter().map(gen::guild))
     }
 
     // pub async fn get_channel(&self, id: u64) -> Result<Channel> {
-    //     await!(self.get(gen::channel(id)))
+    //     await!(self.inner.get(gen::channel(id)))
     // }
 
     pub async fn get_channels<'a>(
@@ -395,7 +221,7 @@ impl Cache {
     }
 
     pub async fn get_guild(&self, id: u64) -> Result<crate::model::Guild> {
-        let values = await!(self.hgetall(gen::guild(id)))?.into_array();
+        let values = await!(self.inner.hgetall(gen::guild(id)))?.into_array();
 
         if values.is_empty() {
             return Err(Error::None);
@@ -403,19 +229,19 @@ impl Cache {
 
         let mut values = RespValue::Array(values);
 
-        let channels = await!(self.smembers::<RespValue>(gen::guild_channels(id)))?;
+        let channels = await!(self.inner.smembers::<RespValue>(gen::guild_channels(id)))?;
         values.push("channels").push(channels);
 
-        let features = await!(self.smembers::<RespValue>(gen::guild_features(id)))?;
+        let features = await!(self.inner.smembers::<RespValue>(gen::guild_features(id)))?;
         values.push("features").push(features);
 
-        let members = await!(self.smembers::<RespValue>(gen::guild_members(id)))?;
+        let members = await!(self.inner.smembers::<RespValue>(gen::guild_members(id)))?;
         values.push("members").push(members);
 
-        let roles = await!(self.smembers::<RespValue>(gen::guild_roles(id)))?;
+        let roles = await!(self.inner.smembers::<RespValue>(gen::guild_roles(id)))?;
         values.push("roles").push(roles);
 
-        let voice_states = await!(self.smembers::<RespValue>(gen::guild_voice_states(id)))?;
+        let voice_states = await!(self.inner.smembers::<RespValue>(gen::guild_voice_states(id)))?;
         values.push("voice_states").push(voice_states);
 
         FromResp::from_resp(values).into_err()
@@ -427,7 +253,7 @@ impl Cache {
     ) -> Result<()> {
         let bytes = serde_json::to_vec(channel)?;
 
-        await!(self.set(gen::channel(channel.id().0), vec![bytes]))?;
+        await!(self.inner.set(gen::channel(channel.id().0), vec![bytes]))?;
 
         Ok(())
     }
@@ -460,12 +286,12 @@ impl Cache {
         }
 
         info!("Sending guild upsert HMSET");
-        self.redis.send_and_forget(set);
+        self.inner.send_sync(set);
         info!("Guild upsert HMSET successful");
 
         if let Some(del) = del {
             info!("Sending guild upsert HDEL");
-            self.hdel_and_forget(gen::guild(gid), del);
+            self.inner.hdel_sync(gen::guild(gid), del);
             info!("Sent guild upsert HDEL");
         }
 
@@ -560,13 +386,13 @@ impl Cache {
         if let Some(nick) = member.nick.as_ref() {
             set.push("nick").push(nick);
         } else {
-            self.hdel_and_forget(
+            self.inner.hdel_sync(
                 gen::member(guild_id, user_id),
                 vec!["afk_channel_id"],
             );
         }
 
-        self.hmset_and_forget(gen::member(guild_id, user_id), set.into_array());
+        self.inner.hmset_sync(gen::member(guild_id, user_id), set.into_array());
 
         self.set_member_roles(
             guild_id,
@@ -593,7 +419,7 @@ impl Cache {
             role.permissions.bits() as usize
         ];
 
-        self.hmset_and_forget(gen::role(guild_id, id), hashes.into_array());
+        self.inner.hmset_sync(gen::role(guild_id, id), hashes.into_array());
     }
 
     pub async fn upsert_voice_state<'a>(
@@ -630,10 +456,10 @@ impl Cache {
             if let Some(token) = state.token.as_ref() {
                 values.push("token".to_owned()).push(token);
             } else {
-                self.hdel_and_forget(key.clone(), vec!["token"]);
+                self.inner.hdel_sync(key.clone(), vec!["token"]);
             }
 
-            self.hmset_and_forget(key, values.into_array());
+            self.inner.hmset_sync(key, values.into_array());
 
             let mut add_member = true;
 
@@ -643,7 +469,7 @@ impl Cache {
                 if old_cid != channel_id {
                     trace!("Old channel ID is different from new");
 
-                    self.srem_and_forget(
+                    self.inner.srem_sync(
                         gen::channel_voice_states(old_cid),
                         vec![user_id as usize],
                     );
@@ -653,7 +479,7 @@ impl Cache {
             }
 
             if add_member {
-                self.sadd_and_forget(
+                self.inner.sadd_sync(
                     gen::channel_voice_states(channel_id),
                     vec![user_id as usize],
                 );
@@ -663,17 +489,17 @@ impl Cache {
             if let Some(channel_id) = old_state.map(|s| s.channel_id) {
                 trace!("Deleting old voice state for channel {}", channel_id);
 
-                self.srem_and_forget(
+                self.inner.srem_sync(
                     gen::channel_voice_states(channel_id),
                     vec![user_id as usize],
                 );
             }
 
-            self.srem_and_forget(
+            self.inner.srem_sync(
                 gen::guild_voice_states(guild_id),
                 vec![user_id as usize],
             );
-            self.del_and_forget(key);
+            self.inner.del_sync(key);
         }
 
         Ok(())
@@ -688,7 +514,7 @@ impl Cache {
     ) {
         let key = gen::user_voice_state(guild_id, user_id);
 
-        self.hmset_and_forget(key, resp_array![
+        self.inner.hmset_sync(key, resp_array![
             "endpoint",
             endpoint,
             "token",
@@ -703,8 +529,8 @@ impl Cache {
     ) {
         let key = gen::channel_voice_states(channel_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, user_ids);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, user_ids);
     }
 
     fn set_guild_channels(
@@ -714,8 +540,8 @@ impl Cache {
     ) {
         let key = gen::guild_channels(guild_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, channel_ids);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, channel_ids);
     }
 
     fn set_guild_features(
@@ -725,8 +551,8 @@ impl Cache {
     ) {
         let features_key = gen::guild_features(guild_id);
 
-        self.del_and_forget(features_key.clone());
-        self.sadd_and_forget(features_key, features);
+        self.inner.del_sync(features_key.clone());
+        self.inner.sadd_sync(features_key, features);
     }
 
     fn set_guild_members(
@@ -736,8 +562,8 @@ impl Cache {
     ) {
         let key = gen::guild_members(guild_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, members);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, members);
     }
 
     fn set_guild_roles(
@@ -747,8 +573,8 @@ impl Cache {
     ) {
         let key = gen::guild_roles(guild_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, roles);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, roles);
     }
 
     fn set_guild_voice_states(
@@ -758,8 +584,8 @@ impl Cache {
     ) {
         let key = gen::guild_voice_states(guild_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, voice_states);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, voice_states);
     }
 
     fn set_member_roles(
@@ -770,7 +596,7 @@ impl Cache {
     ) {
         let key = gen::member_roles(guild_id, user_id);
 
-        self.del_and_forget(key.clone());
-        self.sadd_and_forget(key, roles);
+        self.inner.del_sync(key.clone());
+        self.inner.sadd_sync(key, roles);
     }
 }

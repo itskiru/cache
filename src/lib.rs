@@ -15,6 +15,7 @@
 pub mod model;
 
 mod cache;
+mod commands;
 mod error;
 mod gen;
 mod resp_impl;
