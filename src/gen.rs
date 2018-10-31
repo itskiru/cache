@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn channel_voice_states() {
-        assert_eq!(super::channel(2), "ch:2:v");
+        assert_eq!(super::channel_voice_states(2), "ch:2:v");
     }
 
     #[test]
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn guild_voice_states() {
-        assert_eq!(super::guild_voice_states(1), "vs:1:states");
+        assert_eq!(super::guild_voice_states(1), "g:1:v");
     }
 
     #[test]

@@ -42,6 +42,7 @@ async fn client() -> Result<Cache, Box<StdError + 'static>> {
     Ok(Cache::new(Arc::new(client)))
 }
 
+#[ignore]
 #[test]
 fn retrieval() {
     async fn _get_guild() -> Result<(), Box<StdError + 'static>> {

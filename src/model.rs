@@ -27,6 +27,7 @@ pub struct Guild {
     pub features: HashSet<String>,
     pub members: HashSet<u64>,
     pub name: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub owner_id: u64,
     pub region: String,
     pub roles: HashSet<u64>,
@@ -37,6 +38,7 @@ pub struct Guild {
 pub struct GuildChannel {
     pub bitrate: Option<u64>,
     pub category_id: Option<u64>,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub kind: u64,
     pub name: String,
     pub permission_overwrites: Vec<PermissionOverwrite>,
@@ -55,11 +57,13 @@ pub struct Member {
 pub struct PermissionOverwrite {
     pub allow: Permissions,
     pub deny: Permissions,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub kind: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Role {
+    #[serde(deserialize_with = "deserialize_string_from_number")]
     pub name: String,
     pub permissions: Permissions,
 }
@@ -67,7 +71,9 @@ pub struct Role {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct User {
     pub bot: bool,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub discriminator: u16,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub id: u64,
     pub name: String,
 }
@@ -76,8 +82,8 @@ pub struct User {
 pub struct VoiceState {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub channel_id: u64,
+    #[serde(deserialize_with = "deserialize_string_from_number")]
     pub session_id: String,
-    pub token: Option<String>,
 }
 
 fn create_hashmap(resp: Vec<RespValue>) -> Map<String, Value> {
@@ -140,9 +146,61 @@ from_resp_impls![
 #[cfg(test)]
 mod tests {
     use redis_async::resp::{FromResp, RespValue};
+    use super::*;
+
+    #[test]
+    fn test_role() {
+        let value = RespValue::Array(vec![
+            RespValue::BulkString(b"name".to_vec()),
+            RespValue::BulkString(b"test".to_vec()),
+            RespValue::BulkString(b"permissions".to_vec()),
+            RespValue::BulkString(b"8".to_vec()),
+        ]);
+
+        assert!(Role::from_resp(value).is_ok());
+
+        let value = RespValue::Array(vec![
+            RespValue::BulkString(b"name".to_vec()),
+            RespValue::BulkString(b"0123456".to_vec()),
+            RespValue::BulkString(b"permissions".to_vec()),
+            RespValue::BulkString(b"8".to_vec()),
+        ]);
+
+        assert!(Role::from_resp(value).is_ok());
+    }
 
     #[test]
     fn test_voice_state() {
+        let value = RespValue::Array(vec![
+            RespValue::BulkString(b"channel_id".to_vec()),
+            RespValue::BulkString(b"500000000000000000".to_vec()),
+            RespValue::BulkString(b"session_id".to_vec()),
+            RespValue::BulkString(b"946f395aa3c194fda2aa7baa2e402d2b".to_vec()),
+            RespValue::BulkString(b"token".to_vec()),
+            RespValue::BulkString(b"450d2eedffbdad13".to_vec()),
+        ]);
 
+        assert!(VoiceState::from_resp(value).is_ok());
+    }
+
+    #[test]
+    fn test_voice_state_numeric_fields() {
+        let value = RespValue::Array(vec![
+            RespValue::BulkString(b"channel_id".to_vec()),
+            RespValue::BulkString(b"500000000000000000".to_vec()),
+            RespValue::BulkString(b"session_id".to_vec()),
+            RespValue::BulkString(b"946f395aa3c194fda2aa7baa2e402d2b".to_vec()),
+        ]);
+
+        assert!(VoiceState::from_resp(value).is_ok());
+
+        let value = RespValue::Array(vec![
+            RespValue::BulkString(b"channel_id".to_vec()),
+            RespValue::BulkString(b"500000000000000000".to_vec()),
+            RespValue::BulkString(b"session_id".to_vec()),
+            RespValue::BulkString(b"11111111111111111111111111111111".to_vec()),
+        ]);
+
+        assert!(VoiceState::from_resp(value).is_ok());
     }
 }
