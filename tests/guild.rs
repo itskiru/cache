@@ -3,13 +3,12 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use dabbot_cache::Cache;
 use futures::{
-    compat::{Future01CompatExt, TokioDefaultSpawner},
+    compat::Future01CompatExt,
     future::{FutureExt, TryFutureExt},
 };
 use redis_async::client;
 use serenity::{
     model::prelude::*,
-    prelude::RwLock,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -55,7 +54,7 @@ fn retrieval() {
             channels: {
                 let mut map = HashMap::new();
 
-                map.insert(ChannelId(4), Arc::new(RwLock::new(GuildChannel {
+                map.insert(ChannelId(4), GuildChannel {
                     id: ChannelId(4),
                     bitrate: Some(86400),
                     category_id: Some(ChannelId(3)),
@@ -73,7 +72,7 @@ fn retrieval() {
                     topic: Some("a topic".to_owned()),
                     user_limit: 99.into(),
                     nsfw: false,
-                })));
+                });
 
                 map
             },
@@ -96,13 +95,13 @@ fn retrieval() {
                     mute: false,
                     nick: None,
                     roles: vec![RoleId(6)],
-                    user: Arc::new(RwLock::new(User {
+                    user: User {
                         id: UserId(5),
                         avatar: None,
                         bot: false,
                         discriminator: 1,
                         name: "hello".to_owned(),
-                    })),
+                    },
                 });
 
                 map
@@ -117,7 +116,7 @@ fn retrieval() {
 
                 map.insert(RoleId(6), Role {
                     id: RoleId(6),
-                    colour: 1,
+                    colour: 1u64.into(),
                     hoist: true,
                     managed: false,
                     mentionable: true,
@@ -159,10 +158,10 @@ fn retrieval() {
             set
         });
 
-        await!(client.delete_guild(1))?;
+        client.delete_guild(1);
 
         Ok(())
     }
 
-    tokio::run(_get_guild().map_err(panic).boxed().compat(TokioDefaultSpawner));
+    tokio::run(_get_guild().map_err(panic).boxed().compat());
 }

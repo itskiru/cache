@@ -136,3 +136,13 @@ from_resp_impls![
     User,
     VoiceState,
 ];
+
+#[cfg(test)]
+mod tests {
+    use redis_async::resp::{FromResp, RespValue};
+
+    #[test]
+    fn test_voice_state() {
+
+    }
+}
