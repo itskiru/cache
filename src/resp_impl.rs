@@ -32,3 +32,44 @@ impl RespValueExt for RespValue {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use redis_async::resp::RespValue;
+    use super::RespValueExt;
+
+    #[test]
+    fn test_into_array() {
+        assert_eq!(RespValue::Array(vec![]).into_array(), vec![]);
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_into_array_from_bulk_string() {
+        RespValue::BulkString(b"hi".to_vec()).into_array();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_into_array_from_error() {
+        RespValue::Error("hello".to_owned()).into_array();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_into_array_from_integer() {
+        RespValue::Integer(1).into_array();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_into_array_from_simple_string() {
+        RespValue::SimpleString("hey".to_owned()).into_array();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_into_array_from_nil() {
+        RespValue::Nil.into_array();
+    }
+}
