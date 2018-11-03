@@ -183,6 +183,14 @@ impl Cache {
 
         FromResp::from_resp(resp).into_err()
     }
+
+    /// Deletes the choices of the guild id.
+    pub async fn delete_choices(
+        &self,
+        guild_id: u64,
+    ) -> Result<()> {
+        await!(self.inner.del(gen::choice(guild_id)))
+    }
 }
 
 /// Discord event updates.
