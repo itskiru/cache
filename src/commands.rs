@@ -62,7 +62,7 @@ impl CommandablePairedConnection {
     ) -> Result<T> {
         let value = await!(self.send(resp_array![
             "GET",
-            key
+            key,
         ]))?;
 
         FromResp::from_resp(value).into_err()
@@ -190,22 +190,10 @@ impl CommandablePairedConnection {
     }
 
     pub async fn lrange(&self, key: String, min: i64, max: i64) -> Result<RespValue> {
-        // TODO(Proximyst): Use just `resp_array!` when coercion from
-        // i32/i64 to RespValue::Integer is added
-
-        await!(self.send(resp_array!["LRANGE", key].append(&mut vec![
-            RespValue::Integer(min),
-            RespValue::Integer(max),
-        ])))
+        await!(self.send(resp_array!["LRANGE", key, min, max]))
     }
 
     pub fn lrange_sync(&self, key: String, min: i64, max: i64) {
-        // TODO(Proximyst): Use just `resp_array!` when coercion from
-        // i32/i64 to RespValue::Integer is added
-
-        self.send_sync(resp_array!["LRANGE", key].append(&mut vec![
-            RespValue::Integer(min),
-            RespValue::Integer(max),
-        ]))
+        self.send_sync(resp_array!["LRANGE", key, min, max])
     }
 }
