@@ -188,4 +188,24 @@ impl CommandablePairedConnection {
     pub fn srem_sync(&self, key: String, mut ids: Vec<usize>) {
         self.send_sync(resp_array!["SREM", key].append(&mut ids))
     }
+
+    pub async fn lrange(&self, key: String, min: i64, max: i64) -> Result<RespValue> {
+        // TODO(Proximyst): Use just `resp_array!` when coercion from
+        // i32/i64 to RespValue::Integer is added
+
+        await!(self.send(resp_array!["LRANGE", key].append(&mut vec![
+            RespValue::Integer(min),
+            RespValue::Integer(max),
+        ])))
+    }
+
+    pub fn lrange_sync(&self, key: String, min: i64, max: i64) {
+        // TODO(Proximyst): Use just `resp_array!` when coercion from
+        // i32/i64 to RespValue::Integer is added
+
+        self.send_sync(resp_array!["LRANGE", key].append(&mut vec![
+            RespValue::Integer(min),
+            RespValue::Integer(max),
+        ]))
+    }
 }

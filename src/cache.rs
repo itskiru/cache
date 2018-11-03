@@ -23,7 +23,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    /// Creates a new cache accesser instance.
+    /// Creates a new cache accessing instance.
     pub fn new(redis: Arc<PairedConnection>) -> Self {
         Self {
             inner: CommandablePairedConnection::new(redis),
@@ -146,6 +146,36 @@ impl Cache {
         guild_id: u64,
     ) -> Result<Vec<u64>> {
         let resp = await!(self.inner.get(gen::guild_voice_states(guild_id)))?;
+
+        if resp == RespValue::Nil {
+            return Ok(vec![]);
+        }
+
+        FromResp::from_resp(resp).into_err()
+    }
+
+    /// Gets the choices available for a guild.
+    pub async fn get_choices(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<String>> {
+        let resp = await!(self.inner.get(gen::choice(guild_id)))?;
+
+        if resp == RespValue::Nil {
+            return Ok(vec![]);
+        }
+
+        FromResp::from_resp(resp).into_err()
+    }
+
+    /// Gets the choices availble for a guild within `min <= entry <= max`.
+    pub async fn get_choices_ranged(
+        &self,
+        guild_id: u64,
+        min: i64,
+        max: i64,
+    ) -> Result<Vec<String>> {
+        let resp = await!(self.inner.lrange(gen::choice(guild_id), min, max))?;
 
         if resp == RespValue::Nil {
             return Ok(vec![]);
