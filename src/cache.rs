@@ -30,6 +30,12 @@ impl Cache {
         }
     }
 
+    /// Returns the inner commandable paired connection for use in lower level
+    /// data manipulation.
+    pub fn inner(&self) -> &CommandablePairedConnection {
+        &self.inner
+    }
+
     /// Removes a guild member's voice state.
     ///
     /// Removes the user's ID to the guild's voice state Set if it was in the
