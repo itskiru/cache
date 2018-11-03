@@ -10,6 +10,10 @@ pub fn choice(id: u64) -> String {
     format!("c:{}", id)
 }
 
+pub fn join(id: u64) -> String {
+    format!("j:{}", id)
+}
+
 pub fn guild(id: u64) -> String {
     format!("g:{}", id)
 }
@@ -114,5 +118,10 @@ mod tests {
             super::user_voice_state(381880193251409931, 114941315417899012),
             "g:381880193251409931:v:114941315417899012",
         );
+    }
+
+    #[test]
+    fn join() {
+        assert_eq!(super::join(272410239947767808), "j:272410239947767808");
     }
 }

@@ -191,6 +191,15 @@ impl Cache {
     ) -> Result<()> {
         await!(self.inner.del(gen::choice(guild_id)))
     }
+
+    /// Sets the channel to join of a guild.
+    pub async fn set_join(
+        &self,
+        guild_id: u64,
+        channel: u64,
+    ) -> Result<i64> {
+        await!(self.inner.set(gen::join(guild_id), vec![channel]))
+    }
 }
 
 /// Discord event updates.

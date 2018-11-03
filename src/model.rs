@@ -94,11 +94,6 @@ pub struct VoiceState {
     pub session_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Choice {
-    pub blobs: Vec<String>,
-}
-
 fn create_hashmap(resp: Vec<RespValue>) -> Map<String, Value> {
     let mut map = Map::with_capacity(resp.len() / 2);
     let mut iter = resp.into_iter();
@@ -154,7 +149,6 @@ from_resp_impls![
     Role,
     User,
     VoiceState,
-    Choice,
 ];
 
 #[cfg(test)]
@@ -216,29 +210,5 @@ mod tests {
         ]);
 
         assert!(VoiceState::from_resp(value).is_ok());
-    }
-
-    #[test]
-    fn test_choice() {
-        let value = RespValue::Array(vec![
-            RespValue::BulkString(b"blobs".to_vec()),
-            RespValue::Array(vec![
-                RespValue::BulkString(b"thisi s not actually valid but whatever".to_vec()),
-            ]),
-        ]);
-
-        assert!(Choice::from_resp(value).is_ok());
-
-        let mut value = RespValue::Array(vec![
-            RespValue::BulkString(b"blobs".to_vec()),
-            RespValue::BulkString(b"this should".to_vec()),
-            RespValue::BulkString(b"err the test".to_vec()),
-        ]);
-
-        assert!(std::panic::catch_unwind(|| Choice::from_resp(value.clone())).is_err());
-
-        value.push(RespValue::BulkString(b"should still err the test".to_vec()));
-
-        assert!(Choice::from_resp(value).is_err());
     }
 }
