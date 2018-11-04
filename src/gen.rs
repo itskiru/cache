@@ -54,6 +54,10 @@ pub fn user_voice_state(guild_id: u64, user_id: u64) -> String {
     format!("g:{}:v:{}", guild_id, user_id)
 }
 
+pub fn sharder_to(shard_id: u64) -> String {
+    format!("sharder:to:{}", shard_id)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -123,5 +127,10 @@ mod tests {
     #[test]
     fn join() {
         assert_eq!(super::join(272410239947767808), "j:272410239947767808");
+    }
+
+    #[test]
+    fn sharder_to() {
+        assert_eq!(super::sharder_to(1337), "sharder:to:1337");
     }
 }

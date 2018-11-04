@@ -206,6 +206,15 @@ impl Cache {
     ) -> Result<i64> {
         await!(self.inner.set(gen::join(guild_id), vec![channel]))
     }
+
+    /// Sends a message to the sharder from a shard.
+    pub async fn sharder_msg(
+        &self,
+        shard_id: u64,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        await!(self.inner.rpush(gen::sharder_to(shard_id), data))
+    }
 }
 
 /// Discord event updates.
