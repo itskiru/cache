@@ -190,7 +190,7 @@ impl Cache {
         FromResp::from_resp(resp).into_err()
     }
 
-    /// Deletes the choices of the guild id.
+    /// Deletes the choices of a guild.
     pub async fn delete_choices(
         &self,
         guild_id: u64,
@@ -205,6 +205,14 @@ impl Cache {
         channel: u64,
     ) -> Result<i64> {
         await!(self.inner.set(gen::join(guild_id), vec![channel]))
+    }
+
+    /// Deletes the join value of a guild.
+    pub async fn delete_join(
+        &self,
+        guild_id: u64,
+    ) -> Result<()> {
+        await!(self.inner.del(gen::join(guild_id)))
     }
 
     /// Sends a message to the sharder from a shard.
