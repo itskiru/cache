@@ -116,6 +116,18 @@ impl CommandablePairedConnection {
         self.send_sync(resp_array!["HMSET", key].append(&mut values));
     }
 
+    pub async fn lpush<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
+        &'a self,
+        key: String,
+        values: It,
+    ) -> Result<()> {
+        let mut values = values.into_iter().map(Into::into).collect();
+
+        await!(self.send(resp_array!["LPUSH", key].append(&mut values)))?;
+
+        Ok(())
+    }
+
     pub async fn rpush<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
         &'a self,
         key: String,

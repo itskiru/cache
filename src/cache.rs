@@ -198,6 +198,15 @@ impl Cache {
         await!(self.inner.del(gen::choice(guild_id)))
     }
 
+    /// Pushes choice alternatives for a guild.
+    pub async fn push_choices(
+        &self,
+        guild_id: u64,
+        blobs: Vec<String>,
+    ) -> Result<()> {
+        await!(self.inner.lpush(gen::choice(guild_id), blobs))
+    }
+
     /// Sets the channel to join of a guild.
     pub async fn set_join(
         &self,
