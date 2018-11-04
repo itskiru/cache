@@ -207,6 +207,14 @@ impl Cache {
         await!(self.inner.lpush(gen::choice(guild_id), blobs))
     }
 
+    /// Gets the channel the bot is in, in a guild.
+    pub async fn get_join(
+        &self,
+        guild_id: u64,
+    ) -> Result<String> {
+        await!(self.inner.get(gen::join(guild_id)))
+    }
+
     /// Sets the channel to join of a guild.
     pub async fn set_join(
         &self,
