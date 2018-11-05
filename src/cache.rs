@@ -220,7 +220,7 @@ impl Cache {
         &self,
         guild_id: u64,
         channel: u64,
-    ) -> Result<i64> {
+    ) -> Result<()> {
         await!(self.inner.set(gen::join(guild_id), vec![channel]))
     }
 
@@ -238,7 +238,11 @@ impl Cache {
         shard_id: u64,
         data: Vec<u8>,
     ) -> Result<()> {
-        await!(self.inner.rpush(gen::sharder_to(shard_id), data))
+        let value = RespValue::BulkString(data);
+
+        await!(self.inner.rpush(gen::sharder_to(shard_id), vec![value]))?;
+
+        Ok(())
     }
 }
 

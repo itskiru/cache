@@ -178,10 +178,12 @@ impl CommandablePairedConnection {
         &'a self,
         key: String,
         values: It,
-    ) -> Result<i64> {
+    ) -> Result<()> {
         let mut values = values.into_iter().map(Into::into).collect();
 
-        await!(self.send(resp_array!["SET", key].append(&mut values)))
+        await!(self.send(resp_array!["SET", key].append(&mut values)))?;
+
+        Ok(())
     }
 
     pub async fn smembers<T: FromResp + 'static>(
