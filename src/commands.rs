@@ -123,7 +123,7 @@ impl CommandablePairedConnection {
     ) -> Result<()> {
         let mut values = values.into_iter().map(Into::into).collect();
 
-        await!(self.send(resp_array!["LPUSH", key].append(&mut values)))?;
+        await!(self.send::<RespValue>(resp_array!["LPUSH", key].append(&mut values)))?;
 
         Ok(())
     }
