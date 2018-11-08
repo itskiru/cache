@@ -69,72 +69,72 @@ pub fn sharder_to(shard_id: u64) -> String {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn channel() {
+    fn test_channel() {
         assert_eq!(super::channel(381880193700069377), "ch:381880193700069377");
     }
 
     #[test]
-    fn channel_voice_states() {
+    fn test_channel_voice_states() {
         assert_eq!(super::channel_voice_states(2), "ch:2:v");
     }
 
     #[test]
-    fn choice() {
+    fn test_choice() {
         assert_eq!(super::choice(272410239947767808), "c:272410239947767808");
     }
 
     #[test]
-    fn guild() {
+    fn test_guild() {
         assert_eq!(super::guild(381880193251409931), "g:381880193251409931");
     }
 
     #[test]
-    fn guild_channels() {
+    fn test_guild_channels() {
         assert_eq!(super::guild_channels(2), "g:2:c");
     }
 
     #[test]
-    fn guild_features() {
+    fn test_guild_features() {
         assert_eq!(super::guild_features(2), "g:2:f");
     }
 
     #[test]
-    fn guild_members() {
+    fn test_guild_members() {
         assert_eq!(super::guild_members(3), "g:3:m");
     }
 
     #[test]
-    fn guild_roles() {
+    fn test_guild_roles() {
         assert_eq!(super::guild_roles(3), "g:3:r");
     }
 
     #[test]
-    fn guild_voice_states() {
+    fn test_guild_voice_states() {
         assert_eq!(super::guild_voice_states(1), "g:1:v");
     }
 
     #[test]
-    fn queue() {
+    fn test_queue() {
         assert_eq!(super::queue(272410239947767808), "queue:272410239947767808");
     }
 
     #[test]
-    fn loop_mode() {
+    fn test_loop_mode() {
         assert_eq!(super::loop_mode(272410239947767808), "loop:272410239947767808:mode");
     }
 
     #[test]
-    fn member() {
+    fn test_member() {
         assert_eq!(super::member(1, 2), "g:1:m:2");
     }
 
     #[test]
-    fn member_roles() {
+    fn test_member_roles() {
         assert_eq!(super::member_roles(1, 2), "g:1:m:2:r");
     }
 
     #[test]
-    fn user_voice_state() {
+    fn test_user_voice_state() {
         assert_eq!(super::user_voice_state(1, 2), "g:1:v:2");
         assert_eq!(
             super::user_voice_state(381880193251409931, 114941315417899012),
@@ -143,12 +143,12 @@ mod tests {
     }
 
     #[test]
-    fn join() {
+    fn test_join() {
         assert_eq!(super::join(272410239947767808), "j:272410239947767808");
     }
 
     #[test]
-    fn sharder_to() {
+    fn test_sharder_to() {
         assert_eq!(super::sharder_to(1337), "sharder:to:1337");
     }
 }
