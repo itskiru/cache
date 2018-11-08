@@ -123,7 +123,7 @@ impl CommandablePairedConnection {
     ) -> Result<()> {
         let mut values = values.into_iter().map(Into::into).collect();
 
-        await!(self.send(resp_array!["LPUSH", key].append(&mut values)))?;
+        await!(self.send::<RespValue>(resp_array!["LPUSH", key].append(&mut values)))?;
 
         Ok(())
     }
@@ -135,9 +135,19 @@ impl CommandablePairedConnection {
     ) -> Result<()> {
         let mut values = values.into_iter().map(Into::into).collect();
 
-        await!(self.send(resp_array!["RPUSH", key].append(&mut values)))?;
+        await!(self.send::<RespValue>(resp_array!["RPUSH", key].append(&mut values)))?;
 
         Ok(())
+    }
+
+    pub fn rpush_sync<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
+        &'a self,
+        key: String,
+        values: It,
+    ) {
+        let mut values = values.into_iter().map(Into::into).collect();
+
+        self.send_sync(resp_array!["RPUSH", key].append(&mut values));
     }
 
     pub async fn sadd<'a, T: Into<RespValue>, It: IntoIterator<Item = T> + 'a>(
@@ -178,10 +188,12 @@ impl CommandablePairedConnection {
         &'a self,
         key: String,
         values: It,
-    ) -> Result<i64> {
+    ) -> Result<()> {
         let mut values = values.into_iter().map(Into::into).collect();
 
-        await!(self.send(resp_array!["SET", key].append(&mut values)))
+        await!(self.send(resp_array!["SET", key].append(&mut values)))?;
+
+        Ok(())
     }
 
     pub async fn smembers<T: FromResp + 'static>(
