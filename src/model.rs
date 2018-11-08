@@ -7,7 +7,10 @@ use serde::de::DeserializeOwned;
 use serde_aux::prelude::*;
 use serde_json::{Map, Number, Value};
 use serenity::model::permissions::Permissions;
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    convert::TryFrom,
+};
 
 fn convert<T: DeserializeOwned>(resp: RespValue) -> Result<T, Error> {
     let values = match resp {
@@ -92,6 +95,50 @@ pub struct VoiceState {
     pub channel_id: u64,
     #[serde(deserialize_with = "deserialize_string_from_number")]
     pub session_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum LoopMode {
+    LoopingQueue,
+    LoopingSong,
+    LoopingRange(isize),
+    Off,
+}
+
+impl LoopMode {
+    const LOOPING_QUEUE_ENCODED: &'static str = "LQ";
+    const LOOPING_SONG_ENCODED: &'static str  = "LS";
+    const LOOPING_OFF_ENCODED: &'static str   = "OF";
+}
+
+impl Into<String> for LoopMode {
+    // From cannot fail, while deserializing can
+    // Into cannot fail, which serializing cannot, meaning this fits
+
+    fn into(self) -> String {
+        match self {
+            LoopMode::LoopingQueue => String::from(Self::LOOPING_QUEUE_ENCODED),
+            LoopMode::LoopingSong => String::from(Self::LOOPING_SONG_ENCODED),
+            LoopMode::Off => String::from(Self::LOOPING_OFF_ENCODED),
+            LoopMode::LoopingRange(range) => format!("{}", range),
+        }
+    }
+}
+
+impl TryFrom<String> for LoopMode {
+    type Error = crate::error::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            Self::LOOPING_QUEUE_ENCODED => Ok(LoopMode::LoopingQueue),
+            Self::LOOPING_SONG_ENCODED  => Ok(LoopMode::LoopingSong),
+            Self::LOOPING_OFF_ENCODED   => Ok(LoopMode::Off),
+            _ => {
+                let index = value.parse::<isize>()?;
+                Ok(LoopMode::LoopingRange(index))
+            },
+        }
+    }
 }
 
 fn create_hashmap(resp: Vec<RespValue>) -> Map<String, Value> {
@@ -210,5 +257,27 @@ mod tests {
         ]);
 
         assert!(VoiceState::from_resp(value).is_ok());
+    }
+
+    #[test]
+    fn test_loop_mode() {
+        let value = String::from(LoopMode::LOOPING_QUEUE_ENCODED);
+        assert!(LoopMode::try_from(value).is_ok());
+
+        let value = String::from(LoopMode::LOOPING_SONG_ENCODED);
+        assert!(LoopMode::try_from(value).is_ok());
+
+        let value = String::from(LoopMode::LOOPING_OFF_ENCODED);
+        assert!(LoopMode::try_from(value).is_ok());
+
+        let value = String::from("100");
+        assert_eq!(LoopMode::try_from(value).unwrap(), LoopMode::LoopingRange(100isize));
+
+        let value = String::from("error me pls");
+        let value = LoopMode::try_from(value);
+        match value {
+            Ok(_) => panic!("didn't error"),
+            Err(_) => {},
+        }
     }
 }

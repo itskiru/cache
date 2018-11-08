@@ -2,7 +2,10 @@ use crate::{
     commands::CommandablePairedConnection,
     error::{Error, Result},
     gen,
-    model::VoiceState as CachedVoiceState,
+    model::{
+        VoiceState as CachedVoiceState,
+        LoopMode,
+    },
     resp_impl::RespValueExt as _,
 };
 use essentials::result::ResultExt as _;
@@ -14,6 +17,7 @@ use serde::de::DeserializeOwned;
 use serenity::model::prelude::*;
 use std::{
     collections::HashMap,
+    convert::TryFrom,
     sync::Arc,
 };
 
@@ -239,6 +243,48 @@ impl Cache {
         data: Vec<u8>,
     ) -> Result<()> {
         await!(self.inner.rpush(gen::sharder_to(shard_id), data))
+    }
+
+    pub async fn get_queue(
+        &self,
+        guild_id: u64
+    ) -> Result<Vec<String>> {
+        await!(self.inner.get(gen::queue(guild_id)))
+    }
+
+    pub async fn set_queue(
+        &self,
+        guild_id: u64,
+        queue: Vec<String>,
+    ) -> Result<i64> {
+        await!(self.inner.set(gen::queue(guild_id), queue))
+    }
+
+    pub async fn push_queue(
+        &self,
+        guild_id: u64,
+        item: String,
+    ) -> Result<()> {
+        await!(self.inner.lpush(gen::queue(guild_id), vec![item]))
+    }
+
+    pub async fn get_loop_mode(
+        &self,
+        guild_id: u64,
+    ) -> Result<LoopMode> {
+        let mode: String = await!(self.inner.get(gen::loop_mode(guild_id)))?;
+        TryFrom::try_from(mode)
+    }
+
+    pub async fn set_loop_mode(
+        &self,
+        guild_id: u64,
+        loop_mode: LoopMode,
+    ) -> Result<i64> {
+        await!(self.inner.set(
+            gen::loop_mode(guild_id),
+            vec![Into::<String>::into(loop_mode)],
+        ))
     }
 }
 
