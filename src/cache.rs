@@ -260,7 +260,7 @@ impl Cache {
         &self,
         guild_id: u64,
         queue: Vec<String>,
-    ) -> Result<i64> {
+    ) -> Result<()> {
         await!(self.inner.set(gen::queue(guild_id), queue))
     }
 
@@ -284,7 +284,7 @@ impl Cache {
         &self,
         guild_id: u64,
         loop_mode: LoopMode,
-    ) -> Result<i64> {
+    ) -> Result<()> {
         await!(self.inner.set(
             gen::loop_mode(guild_id),
             vec![Into::<String>::into(loop_mode)],
