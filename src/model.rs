@@ -1,6 +1,9 @@
-use crate::resp_impl::RespValueExt;
+use crate::{
+    error::Error as CacheError,
+    resp_impl::RespValueExt,
+};
 use redis_async::{
-    error::Error,
+    error::Error as RedisError,
     resp::{FromResp, RespValue},
 };
 use serde::de::DeserializeOwned;
@@ -12,10 +15,10 @@ use std::{
     convert::TryFrom,
 };
 
-fn convert<T: DeserializeOwned>(resp: RespValue) -> Result<T, Error> {
+fn convert<T: DeserializeOwned>(resp: RespValue) -> Result<T, RedisError> {
     let values = match resp {
         RespValue::Array(x) => x,
-        _ => return Err(Error::RESP("Expected an array".to_owned(), None)),
+        _ => return Err(RedisError::RESP("Expected an array".to_owned(), None)),
     };
 
     let map = create_hashmap(values);
@@ -27,7 +30,7 @@ fn convert<T: DeserializeOwned>(resp: RespValue) -> Result<T, Error> {
 
     match serde_json::from_value(Value::from(map)) {
         Ok(deserialized) => Ok(deserialized),
-        Err(err) => Err(Error::Unexpected(format!("Couldn't deserialize a cached value: err={:?}", err))),
+        Err(err) => Err(RedisError::Unexpected(format!("Couldn't deserialize a cached value: err={:?}", err))),
     }
 }
 
@@ -97,11 +100,10 @@ pub struct VoiceState {
     pub session_id: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum LoopMode {
-    LoopingQueue,
-    LoopingSong,
-    LoopingRange(isize),
+    Queue,
+    Song,
     Off,
 }
 
@@ -117,26 +119,22 @@ impl Into<String> for LoopMode {
 
     fn into(self) -> String {
         match self {
-            LoopMode::LoopingQueue => String::from(Self::LOOPING_QUEUE_ENCODED),
-            LoopMode::LoopingSong => String::from(Self::LOOPING_SONG_ENCODED),
+            LoopMode::Queue => String::from(Self::LOOPING_QUEUE_ENCODED),
+            LoopMode::Song => String::from(Self::LOOPING_SONG_ENCODED),
             LoopMode::Off => String::from(Self::LOOPING_OFF_ENCODED),
-            LoopMode::LoopingRange(range) => format!("{}", range),
         }
     }
 }
 
 impl TryFrom<String> for LoopMode {
-    type Error = crate::error::Error;
+    type Error = CacheError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            Self::LOOPING_QUEUE_ENCODED => Ok(LoopMode::LoopingQueue),
-            Self::LOOPING_SONG_ENCODED  => Ok(LoopMode::LoopingSong),
-            Self::LOOPING_OFF_ENCODED   => Ok(LoopMode::Off),
-            _ => {
-                let index = value.parse::<isize>()?;
-                Ok(LoopMode::LoopingRange(index))
-            },
+        match &*value {
+            Self::LOOPING_QUEUE_ENCODED => Ok(LoopMode::Queue),
+            Self::LOOPING_SONG_ENCODED => Ok(LoopMode::Song),
+            Self::LOOPING_OFF_ENCODED => Ok(LoopMode::Off),
+            _ => Err(CacheError::InvalidLoopMode),
         }
     }
 }
@@ -181,7 +179,7 @@ fn resp_to_value(resp: RespValue) -> Value {
 macro from_resp_impls($($struct:ident,)+) {
     $(
         impl FromResp for $struct {
-            fn from_resp_int(resp: RespValue) -> Result<Self, Error> {
+            fn from_resp_int(resp: RespValue) -> Result<Self, RedisError> {
                 convert(resp)
             }
         }

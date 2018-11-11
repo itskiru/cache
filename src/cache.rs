@@ -275,20 +275,30 @@ impl Cache {
     pub async fn get_loop_mode(
         &self,
         guild_id: u64,
-    ) -> Result<LoopMode> {
-        let mode: String = await!(self.inner.get(gen::loop_mode(guild_id)))?;
-        TryFrom::try_from(mode)
+    ) -> Result<Option<LoopMode>> {
+        let mode: Option<String> = await!(self.inner.hget(
+            gen::guild_player(guild_id),
+            "loop_mode".to_owned(),
+        ))?;
+
+        match mode {
+            Some(mode) => TryFrom::try_from(mode).map(Some),
+            None => Ok(None),
+        }
     }
 
-    pub async fn set_loop_mode(
+    pub fn set_loop_mode(
         &self,
         guild_id: u64,
         loop_mode: LoopMode,
-    ) -> Result<()> {
-        await!(self.inner.set(
-            gen::loop_mode(guild_id),
-            vec![Into::<String>::into(loop_mode)],
-        ))
+    ) {
+        let key = gen::guild_player(guild_id);
+
+        let mode: String = loop_mode.into();
+
+        let value = resp_array!["loop_mode", mode];
+
+        self.inner.hmset_sync(key, value.into_array());
     }
 }
 

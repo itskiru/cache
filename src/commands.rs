@@ -90,6 +90,16 @@ impl CommandablePairedConnection {
         self.send_sync(resp_array!["HDEL", key].append(&mut values));
     }
 
+    pub async fn hget<T: FromResp + 'static>(
+        &self,
+        key: String,
+        field: String,
+    ) -> Result<T> {
+        let value = await!(self.send(resp_array!["HGET", key, field]))?;
+
+        FromResp::from_resp(value).into_err()
+    }
+
     pub async fn hgetall(&self, key: String) -> Result<RespValue> {
         await!(self.send(resp_array!["HGETALL", key]))
     }

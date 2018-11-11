@@ -12,6 +12,7 @@ pub type Result<T> = StdResult<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+    InvalidLoopMode,
     Json(JsonError),
     None,
     ParseInt(ParseIntError),
@@ -29,6 +30,7 @@ impl StdError for Error {
         use self::Error::*;
 
         match self {
+            InvalidLoopMode => "Invalid loop mode",
             Json(why) => why.description(),
             None => "none",
             ParseInt(why) => why.description(),

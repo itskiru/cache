@@ -30,6 +30,10 @@ pub fn guild_members(id: u64) -> String {
     format!("g:{}:m", id)
 }
 
+pub fn guild_player(id: u64) -> String {
+    format!("g:{}:lhs", id)
+}
+
 pub fn guild_roles(id: u64) -> String {
     format!("g:{}:r", id)
 }
@@ -40,10 +44,6 @@ pub fn guild_voice_states(guild_id: u64) -> String {
 
 pub fn queue(guild_id: u64) -> String {
     format!("queue:{}", guild_id)
-}
-
-pub fn loop_mode(guild_id: u64) -> String {
-    format!("loop:{}:mode", guild_id)
 }
 
 pub fn member(guild_id: u64, user_id: u64) -> String {
@@ -104,6 +104,11 @@ mod tests {
     }
 
     #[test]
+    fn test_guild_player() {
+        assert_eq!(super::guild_player(4), "g:4:lhs");
+    }
+
+    #[test]
     fn test_guild_roles() {
         assert_eq!(super::guild_roles(3), "g:3:r");
     }
@@ -116,11 +121,6 @@ mod tests {
     #[test]
     fn test_queue() {
         assert_eq!(super::queue(272410239947767808), "queue:272410239947767808");
-    }
-
-    #[test]
-    fn test_loop_mode() {
-        assert_eq!(super::loop_mode(272410239947767808), "loop:272410239947767808:mode");
     }
 
     #[test]
